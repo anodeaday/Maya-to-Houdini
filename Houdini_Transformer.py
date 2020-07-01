@@ -26,7 +26,7 @@ from maya side....
 """
 
 sceneroot = None
-use_redshift_lights = False
+use_redshift_lights = True
 
 supported_light_types = ["RedshiftDomeLight",
                    "RedshiftPhysicalLight",
@@ -124,7 +124,7 @@ def translate_light():
                 set_attributes_redshift_light(type,light,lamp)
                 pass
             if type=="RedshiftPhysicalLight":
-                light.setParms({'light_type': 2})
+                light.setParms({'light_type': 3})
                 for scale in scales:
                     light.setParms({'areasize1': (scale[0] * 2), 'areasize2': (scale[1] * 2)})
                 set_attributes_redshift_light(type,light,lamp)
@@ -171,16 +171,20 @@ def set_attributes_redshift_light(type,light, lamp):
         if type == "RedshiftDomeLight":
             light.setParms({'env_map': lamp.get('tex0')})
             light.setParms({'RSL_flipHorizontal': lamp.get('flipHorizontal')})
+            
             if lamp.get('srgbToLinear0'):
                 light.setParms({'tex0_gammaoverride': True})
                 light.setParms({'tex0_srgb': True})
+            if lamp.get('gamma0') != 1:
+                light.setParms({'tex0_gammaoverride': True})
+                light.setParms({'tex0_gamma': lamp.get('gamma0')})
             light.setParms({'RSL_exposure': lamp.get('exposure0')})
             light.setParms({'RSL_hue': lamp.get('hue0')})
-            light.setParms({'RSL_Saturation': lamp.get('saturation0')})
+            light.setParms({'RSL_saturation': lamp.get('saturation0')})
             light.setParms({'background_enable': lamp.get('background_enable')})
             light.setParms({'RSL_affectDiffuse': lamp.get('affectsDiffuse')})
             light.setParms({'RSL_affectSpecular': lamp.get('affectsSpecular')})
-            light.setParms({'light_contribprimary': lamp.get('volumeRayContributionScale')})
+            light.setParms({'RSL_volumeScale': lamp.get('volumeRayContributionScale')})
         if type == "RedshiftPhysicalLight":
             light.setParms({'RSL_intensityMultiplier': lamp.get('intensity')})
             light.setParms({'Light1_exposure': lamp.get('exposure')})
@@ -191,8 +195,6 @@ def set_attributes_redshift_light(type,light, lamp):
             light.setParms({'RSL_volumeScale': lamp.get('volumeRayContributionScale')})
             light.setParms({'RSL_areaShape': lamp.get('areaShape')})
         else:
-            light.setParms({'RSL_intensityMultiplier': lamp.get('intensity')})
-            light.setParms({'Light1_exposure': lamp.get('exposure')})
             light.setParms({'RSL_affectDiffuse': lamp.get('emitDiffuse')})
             light.setParms({'RSL_affectSpecular': lamp.get('emitSpecular')})
             light.setParms({'RSL_volumeScale': lamp.get('volumeRayContributionScale')})
