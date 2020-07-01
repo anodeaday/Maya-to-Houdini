@@ -12,8 +12,75 @@ def list_all_lamps():
         return lamps
 
 
-def attribute_generator(attributes, lamps):
-    lamp_dict = [{attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in attributes} for lamp in lamps]
+def attribute_generator(lamps):
+    lamp_dict = []
+
+    supported_light_types = ["RedshiftDomeLight",
+                   "RedshiftPhysicalLight",
+                   # Maya light Types
+                   "directionalLight",
+                   "pointLight",
+                   "spotLight"]
+
+    light_types = ["RedshiftDomeLight",
+                   "RedshiftIESLight",
+                   "RedshiftPhysicalLight",
+                   "RedshiftPortalLight",
+                   # Maya light Types
+                   "directionalLight",
+                   "pointLight",
+                   "spotLight"]
+
+    rs_physcical_attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'affectsDiffuse',
+                               'affectsSpecular',
+                               'areaVisibleInRender', 'areaBidirectional', 'volumeRayContributionScale', 'exposure',
+                               'areaShape']
+    rs_dome_attributes = ['scale', 'rotate', 'translate', 'tex0', 'flipHorizontal','srgbToLinear0'
+                        ,'gamma0','exposure0','hue0','saturation0','color', 'affectsDiffuse','affectsSpecular'
+                       ,'background_enable', 'volumeRayContributionScale']
+    directional_attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'emitDiffuse','emitSpecular']
+    point_attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'decayRate', 'emitDiffuse',
+                        'emitSpecular']
+    spot_attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'coneAngle', 'penumbraAngle', 'dropoff',
+                       'decayRate', 'emitDiffuse', 'emitSpecular']
+
+
+    for lamp in lamps:
+        no_light = False
+
+        shapes = cmds.listRelatives(lamp, s=True)
+        light_type = cmds.objectType(shapes[0])
+
+        if light_type not in supported_light_types:
+            no_light = True
+            #cmds.confirmDialog(title='LIGHT not supported', message='Could not add {}. Is it a light?'.format(lamp))
+            cmds.confirmDialog(title='This light is not supported', message='Light type is {} is not supported. Aborting.'.format(light_type))
+            return False;
+            lamps.remove(lamp)
+            continue
+        else:
+            lamp_entry = dict()
+            if light_type == "RedshiftDomeLight":
+                lamp_entry = {attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in rs_dome_attributes};
+                lamp_entry['type'] = 'RedshiftDomeLight'
+            elif light_type == "RedshiftPhysicalLight":
+                lamp_entry = {attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in rs_physcical_attributes};
+                lamp_entry['type'] = 'RedshiftPhysicalLight'
+            elif light_type == "directionalLight":
+                lamp_entry = {attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in directional_attributes};
+                lamp_entry['type'] = 'directionalLight'
+            elif light_type == "pointLight":
+                lamp_entry = {attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in point_attributes};
+                lamp_entry['type'] = 'pointLight'
+            elif light_type == "spotLight":
+                lamp_entry = {attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in spot_attributes};
+                lamp_entry['type'] = 'spotLight'
+            lamp_dict.append(lamp_entry)
+
+    #try:
+    #    lamp_dict = [{attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in attributes} for lamp in lamps]
+    #except ValueError:
+    #    lamp_dict = [{attr: cmds.getAttr('{}.{}'.format(lamp, attr)) for attr in point_attributes} for lamp in lamps]
     filepath = cmds.file(q=True, sn=True)
     filename = os.path.basename(filepath)
     raw_name, extension = os.path.splitext(filename)
@@ -32,6 +99,8 @@ def ask_filepath_location():
 def write_attributes(*args):
     """ Write out the attributes in json and fbx"""
     attrdict = write_json()
+    if not attrdict:
+        return False;
     filename = ''.join(ask_filepath_location())
     file = open('{}'.format(filename), 'w')
     file.write(attrdict)
@@ -42,7 +111,9 @@ def write_attributes(*args):
 
 def write_fbx(filename):
     path = os.path.dirname(filename)
-    fbxpath = '{}/'.format(path) + 'scene' + '.fbx'
+    fname = str(filename).split('/')[-1:][0]
+    fname = str(fname).replace('.json','.fbx')
+    fbxpath = '{}/'.format(path) + fname
     mel.eval('FBXExportBakeComplexAnimation -q; ')  # bake animation
     mel.eval('FBXExport -f "{}" -s'.format(fbxpath))  # remove -s to export all
 
@@ -75,10 +146,13 @@ def world_duplicater(*arg):
 
 
 def write_json():
-    attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'affectsDiffuse', 'affectsSpecular',
-                  'areaVisibleInRender', 'areaBidirectional', 'volumeRayContributionScale', 'exposure', 'areaShape']
-    attr = json.dumps(attribute_generator(attributes, list_all_lamps()))
-    return attr
+    attribs = attribute_generator(list_all_lamps())
+    if attribs:
+        attr = json.dumps(attribs)
+        return attr
+    else:
+        return False;
+
 
 
 def launch_interface():
