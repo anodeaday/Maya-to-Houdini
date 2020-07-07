@@ -2,7 +2,6 @@ import hou
 import json
 import os
 
-
 """
 from maya side....
 
@@ -26,20 +25,21 @@ from maya side....
 """
 
 sceneroot = None
-use_redshift_lights = True
+use_redshift_lights = False
 
 supported_light_types = ["RedshiftDomeLight",
-                   "RedshiftPhysicalLight",
-                   # Maya light Types
-                   "directionalLight",
-                   "pointLight",
-                   "spotLight"]
+                         "RedshiftPhysicalLight",
+                         # Maya light Types
+                         "directionalLight",
+                         "pointLight",
+                         "spotLight"]
 
-def create_light(name,sceneroot,type):
+
+def create_light(name, sceneroot, type):
     """ create lights in the scene"""
     nodeName = name + '_H'
     delete_light = '/obj/{}/{}'.format(sceneroot.name(), name)
-    #hou.ui.displayMessage('light to delete {}'.format(delete_light))
+    # hou.ui.displayMessage('light to delete {}'.format(delete_light))
     for child in sceneroot.children():
         if child.name() == name:
             child.destroy()
@@ -53,13 +53,14 @@ def create_light(name,sceneroot,type):
             light = sceneroot.createNode('envlight', '{}'.format(nodeName))
     else:
         if use_redshift_lights:
-            #make redshift light. It has all we need.
+            # make redshift light. It has all we need.
             light = sceneroot.createNode('rslight', '{}'.format(nodeName))
         else:
-            #make mantra light.
+            # make mantra light.
             light = sceneroot.createNode('hlight', '{}'.format(nodeName))
 
     return light
+
 
 def filepath():
     """ ask for file path"""
@@ -86,11 +87,11 @@ def import_fbx(path):
     fname = str(path).split('/')[-1:][0]
     fname = str(fname).replace('.json', '.fbx')
     hou.hipFile.importFBX(fname)
-    fname = fname.replace(".","_")
+    fname = fname.replace(".", "_")
     global sceneroot
     sceneroot = hou.node('/obj/{}/'.format(fname))
-    #fbxpath = '{}/'.format(path) + fname
-    #hou.hipFile.importFBX('scene.fbx')
+    # fbxpath = '{}/'.format(path) + fname
+    # hou.hipFile.importFBX('scene.fbx')
 
 
 def translate_light():
@@ -106,72 +107,80 @@ def translate_light():
         name = lamp.get('name')
         type = lamp.get('type')
         if type not in supported_light_types:
-            #unsupported light type found. Don't bother. This "should" be fixed in maya side.
+            # unsupported light type found. Don't bother. This "should" be fixed in maya side.
             continue
 
-        light = create_light(name, sceneroot,type)
+        light = create_light(name, sceneroot, type)
         # Connect lights to Null objects
-        #null = hou.node('/obj/scene_fbx/{}/'.format(name))
+        # null = hou.node('/obj/scene_fbx/{}/'.format(name))
         light.setInput(0, globalnull, 0)
-        #null.setInput(0, globalnull, 0)
+        # null.setInput(0, globalnull, 0)
         scales = lamp.get('scale')
         colors = lamp.get('color')
         global use_redshift_lights
 
         if type.startswith("Redshift"):
             # a redshift light Duh
-            if type=="RedshiftDomeLight":
-                set_attributes_redshift_light(type,light,lamp)
+            if type == "RedshiftDomeLight":
+                set_attributes_redshift_light(type, light, lamp)
                 pass
-            if type=="RedshiftPhysicalLight":
+            if type == "RedshiftPhysicalLight":
                 light.setParms({'light_type': 3})
                 for scale in scales:
                     light.setParms({'areasize1': (scale[0] * 2), 'areasize2': (scale[1] * 2)})
-                set_attributes_redshift_light(type,light,lamp)
+                set_attributes_redshift_light(type, light, lamp)
 
-        elif type=='directionalLight':
+        elif type == 'directionalLight':
             if use_redshift_lights:
                 light.setParms({'light_type': 0})
                 set_attributes_redshift_light(type, light, lamp)
             else:
                 light.setParms({'light_type': 7})
-                set_attributes_maya_light(type,light, lamp)
+                set_attributes_maya_light(type, light, lamp)
 
-        elif type=='spotLight':
+        elif type == 'spotLight':
             if use_redshift_lights:
                 light.setParms({'light_type': 2})
                 set_attributes_redshift_light(type, light, lamp)
             else:
                 light.setParms({'light_type': 0})
-                light.setParms({'coneenable':True})
+                light.setParms({'coneenable': True})
                 set_attributes_maya_light(type, light, lamp)
 
-        elif type=='pointLight':
+        elif type == 'pointLight':
             if use_redshift_lights:
                 light.setParms({'light_type': 1})
                 set_attributes_redshift_light(type, light, lamp)
 
             else:
                 light.setParms({'light_type': 0})
-                set_attributes_maya_light(type,light, lamp)
+                set_attributes_maya_light(type, light, lamp)
 
         for color in colors:
             light.setParms({'light_colorr': color[0], 'light_colorg': color[1], 'light_colorb': color[2]})
         comment = lamp.get('filename')
-        light.setGenericFlag(hou.nodeFlag.DisplayComment, True)
-        light.setComment(comment)
+        positions = lamp.get('translate')
+        for pos in positions:
+            light.setParms({'tx': pos[0], 'ty': pos[1], 'tz': pos[2]})
+        rotations = lamp.get('rotate')
+        for rot in positions:
+            light.setParms({'rx': rot[0], 'ry': rot[1], 'rz': rot[2]})
+
+    light.setGenericFlag(hou.nodeFlag.DisplayComment, True)
+    light.setComment(comment)
+
 
     sceneroot.layoutChildren()
 
 
-def set_attributes_redshift_light(type,light, lamp):
+def set_attributes_redshift_light(type, light, lamp):
     """ set the attributes for the light """
     global use_redshift_lights
     if use_redshift_lights:
         if type == "RedshiftDomeLight":
             light.setParms({'env_map': lamp.get('tex0')})
             light.setParms({'RSL_flipHorizontal': lamp.get('flipHorizontal')})
-            
+
             if lamp.get('srgbToLinear0'):
                 light.setParms({'tex0_gammaoverride': True})
                 light.setParms({'tex0_srgb': True})
@@ -210,11 +219,10 @@ def set_attributes_redshift_light(type,light, lamp):
         if type == "RedshiftPhysicalLight":
             light.setParms({'light_contribprimary': lamp.get('areaVisibleInRender')})
 
-
-
     # create comment-description for each light
 
-def set_attributes_maya_light(type,light, lamp):
+
+def set_attributes_maya_light(type, light, lamp):
     light.setParms({'light_intensity': lamp.get('intensity')})
     light.setParms({'light_exposure': lamp.get('exposure')})
     diffuse = lamp.get('emitDiffuse');
@@ -229,15 +237,15 @@ def set_attributes_maya_light(type,light, lamp):
     if type == "pointLight":
         # pointlight only attributes
         pass
-    if type =="spotLight":
-        #spotlight only attributes
+    if type == "spotLight":
+        # spotlight only attributes
         light.setParms({'coneangle': lamp.get('coneAngle')})
         light.setParms({'conedelta': lamp.get('penumbraAngle')})
         light.setParms({'coneroll': lamp.get('dropoff')})
         pass
     if type == "spotLight" or type == "pointLight":
 
-        #both spot and point stuff.
+        # both spot and point stuff.
         decay = lamp.get("decayRate")
         if decay == 0:
             light.setParms({'atten_type': 0})
@@ -248,11 +256,13 @@ def set_attributes_maya_light(type,light, lamp):
         elif decay == 3:
             light.setParms({'atten_type': 2})
 
+
 def main(**kwargs):
     translate_light()
     hou.ui.displayMessage('Lights have been generated!')
 
-#if __name__ == "__main__":
+
+# if __name__ == "__main__":
 #    translate_light()
 #    hou.ui.displayMessage('Lights have been generated!')
 
