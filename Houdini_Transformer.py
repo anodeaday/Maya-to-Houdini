@@ -94,6 +94,35 @@ def import_fbx(path):
     # hou.hipFile.importFBX('scene.fbx')
 
 
+def light_type_toMantra(light_type):
+
+    '''
+    //Mantra
+    0 Point
+    1 Line
+    2 Grid
+    3 Disk
+    4 Sphere
+    5 Tube
+    6 Geometry
+    7 Distant
+    8 Sun
+
+    //Redshift
+    0 Area
+    1 Point
+    2 Spot
+    3 Directional
+    '''
+    switcher = {
+        0: 2,
+        1: 0,
+        2: 0,
+        3: 7,
+    }
+    return switcher.get(light_type, 0)
+
+
 def translate_light():
     """ position the light with correct scale,rotation and translation """
     lampattr, path = read_json()
@@ -125,7 +154,8 @@ def translate_light():
                 set_attributes_redshift_light(type, light, lamp)
                 pass
             if type == "RedshiftPhysicalLight":
-                light.setParms({'light_type': 3})
+                new_type = light_type_toMantra(lamp.get('lightType'))
+                light.setParms({'light_type': lamp.get('lightType')})
                 for scale in scales:
                     light.setParms({'areasize1': (scale[0] * 2), 'areasize2': (scale[1] * 2)})
                 set_attributes_redshift_light(type, light, lamp)
@@ -159,12 +189,14 @@ def translate_light():
         for color in colors:
             light.setParms({'light_colorr': color[0], 'light_colorg': color[1], 'light_colorb': color[2]})
         comment = lamp.get('filename')
+        rotations = lamp.get('rotate')
+        for rot in rotations:
+            light.setParms({'rx': rot[0], 'ry': rot[1], 'rz': rot[2]})
+
         positions = lamp.get('translate')
         for pos in positions:
             light.setParms({'tx': pos[0], 'ty': pos[1], 'tz': pos[2]})
-        rotations = lamp.get('rotate')
-        for rot in positions:
-            light.setParms({'rx': rot[0], 'ry': rot[1], 'rz': rot[2]})
+
 
     light.setGenericFlag(hou.nodeFlag.DisplayComment, True)
     light.setComment(comment)
@@ -195,6 +227,7 @@ def set_attributes_redshift_light(type, light, lamp):
             light.setParms({'RSL_affectSpecular': lamp.get('affectsSpecular')})
             light.setParms({'RSL_volumeScale': lamp.get('volumeRayContributionScale')})
         if type == "RedshiftPhysicalLight":
+            light.setParms({'light_type': lamp.get('lightType')})
             light.setParms({'RSL_intensityMultiplier': lamp.get('intensity')})
             light.setParms({'Light1_exposure': lamp.get('exposure')})
             light.setParms({'RSL_affectDiffuse': lamp.get('affectsDiffuse')})
@@ -209,6 +242,8 @@ def set_attributes_redshift_light(type, light, lamp):
             light.setParms({'RSL_volumeScale': lamp.get('volumeRayContributionScale')})
 
     else:
+        new_type = light_type_toMantra(lamp.get('lightType'))
+        light.setParms({'light_type': new_type})
         light.setParms({'light_intensity': lamp.get('intensity')})
         light.setParms({'light_exposure': lamp.get('exposure')})
 

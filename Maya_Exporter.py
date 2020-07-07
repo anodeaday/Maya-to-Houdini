@@ -32,7 +32,7 @@ def attribute_generator(lamps):
                    "spotLight"]
 
     rs_physcical_attributes = ['scale', 'rotate', 'translate', 'intensity', 'color', 'affectsDiffuse',
-                               'affectsSpecular',
+                               'affectsSpecular',"lightType",
                                'areaVisibleInRender', 'areaBidirectional', 'volumeRayContributionScale', 'exposure',
                                'areaShape']
     rs_dome_attributes = ['scale', 'rotate', 'translate', 'tex0', 'flipHorizontal','srgbToLinear0'
